@@ -5,14 +5,6 @@ import "fmt"
 // Color represents the color of an LED on the Launchpad
 type Color int
 
-const (
-	ColorOff    Color = iota // LED off
-	ColorRed                 // Red LED
-	ColorGreen               // Green LED
-	ColorAmber               // Amber (red + green mix)
-	ColorYellow              // Yellow (red + green, more green)
-)
-
 // String returns the string representation of a Color
 func (c Color) String() string {
 	switch c {

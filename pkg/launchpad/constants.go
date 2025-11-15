@@ -102,6 +102,15 @@ const (
 	VelocityGreenFullFlash  = 0x38 // 56
 )
 
+// Color constants for LED colors
+const (
+	ColorOff    Color = iota // LED off
+	ColorRed                 // Red LED
+	ColorGreen               // Green LED
+	ColorAmber               // Amber (red + green mix)
+	ColorYellow              // Yellow (red + green, more green)
+)
+
 // Brightness constants for LED brightness levels (0-3)
 const (
 	BrightnessOff    Brightness = 0 // LED off
