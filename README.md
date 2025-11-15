@@ -1,0 +1,348 @@
+# golp - Launchpad Mini Go Library
+
+A Go library for controlling the Novation Launchpad Mini MIDI hardware device.
+
+## Features
+
+- **Simple LED Control** - Intuitive API for controlling 80 bi-color LEDs
+- **Event-Driven Input** - Callback or channel-based button event handling
+- **Double-Buffering** - Smooth animations with buffer swapping
+- **Type-Safe** - Strong types for coordinates, colors, and brightness
+- **Auto Rate-Limiting** - Automatic MIDI message throttling (400 msg/sec)
+- **Cross-Platform** - Works on Linux, macOS, and Windows
+
+## Hardware Specifications
+
+The Novation Launchpad Mini features:
+- 8×8 grid of bi-color LEDs (red/green/amber/yellow)
+- 4 brightness levels per color
+- 8 scene buttons (right column)
+- 8 top row buttons (Automap/Live)
+- MIDI communication over USB
+
+## Installation
+
+```bash
+go get github.com/inegm/golp/pkg/launchpad
+```
+
+### System Requirements
+
+This library uses [gomidi/midi](https://gitlab.com/gomidi/midi) which requires:
+
+**Linux:**
+```bash
+sudo apt-get install libasound2-dev
+```
+
+**macOS:**
+No additional dependencies required.
+
+**Windows:**
+No additional dependencies required.
+
+## Quick Start
+
+```go
+package main
+
+import (
+    "log"
+    "github.com/inegm/golp/pkg/launchpad"
+)
+
+func main() {
+    // Create and open connection
+    lp := launchpad.New()
+    err := lp.Open()
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer lp.Close()
+
+    // Set an LED
+    lp.SetLED(3, 4, launchpad.ColorRed, launchpad.BrightnessFull)
+
+    // Listen for button presses
+    lp.OnButton(func(event launchpad.ButtonEvent) {
+        if event.Pressed {
+            lp.SetButtonLED(event.Button, launchpad.ColorGreen, launchpad.BrightnessFull)
+        } else {
+            lp.SetButtonLED(event.Button, launchpad.ColorOff, launchpad.BrightnessOff)
+        }
+    })
+
+    // Keep running
+    select {}
+}
+```
+
+## API Overview
+
+### Creating and Opening Connection
+
+```go
+lp := launchpad.New()
+err := lp.Open()
+if err != nil {
+    log.Fatal(err)
+}
+defer lp.Close()
+```
+
+### LED Control
+
+```go
+// Set individual LED
+lp.SetLED(x, y, launchpad.ColorRed, launchpad.BrightnessFull)
+
+// Set scene button (right column)
+lp.SetSceneButton(y, launchpad.ColorGreen, launchpad.BrightnessMedium)
+
+// Set top row button
+lp.SetTopButton(x, launchpad.ColorAmber, launchpad.BrightnessLow)
+
+// Set entire row
+lp.SetRow(3, launchpad.ColorYellow, launchpad.BrightnessFull)
+
+// Set entire column
+lp.SetColumn(5, launchpad.ColorGreen, launchpad.BrightnessMedium)
+
+// Clear all LEDs
+lp.Clear()
+```
+
+### Colors and Brightness
+
+**Available Colors:**
+- `ColorOff` - LED off
+- `ColorRed` - Red
+- `ColorGreen` - Green
+- `ColorAmber` - Amber (red + green)
+- `ColorYellow` - Yellow (more green than amber)
+
+**Brightness Levels:**
+- `BrightnessOff` - 0 (off)
+- `BrightnessLow` - 1
+- `BrightnessMedium` - 2
+- `BrightnessFull` - 3
+
+### Button Events
+
+**Callback Style:**
+```go
+lp.OnButton(func(event launchpad.ButtonEvent) {
+    if event.Pressed {
+        // Button was pressed
+        log.Printf("Pressed: %v", event.Button)
+    } else {
+        // Button was released
+        log.Printf("Released: %v", event.Button)
+    }
+})
+```
+
+**Channel Style:**
+```go
+go func() {
+    for event := range lp.ButtonEvents() {
+        if event.Pressed {
+            log.Printf("Pressed: %v", event.Button)
+        }
+    }
+}()
+```
+
+### Double-Buffering for Animations
+
+Double-buffering allows you to prepare the next frame while displaying the current one, then swap instantly:
+
+```go
+// Set up buffers
+lp.SetDisplayBuffer(launchpad.Buffer0)
+lp.SetUpdateBuffer(launchpad.Buffer1)
+
+// Update buffer 1 (invisible)
+for y := 0; y < 8; y++ {
+    for x := 0; x < 8; x++ {
+        lp.SetLED(x, y, launchpad.ColorRed, launchpad.BrightnessFull)
+    }
+}
+
+// Swap for instant visual update
+lp.SwapBuffers()
+```
+
+### System Commands
+
+```go
+// Reset device to defaults
+lp.Reset()
+
+// Set mapping mode
+lp.SetMappingMode(launchpad.MappingXY)      // X-Y layout (default)
+lp.SetMappingMode(launchpad.MappingDrum)    // Drum rack layout
+
+// Test LEDs (turns all on at specified brightness)
+lp.TestLEDs(launchpad.BrightnessFull)
+
+// Flash mode
+lp.EnableFlash(true)
+```
+
+### Advanced LED Control
+
+For advanced users who need direct RGB control:
+
+```go
+// Create custom LED state
+state := launchpad.LEDState{
+    Red:   launchpad.BrightnessFull,    // 0-3
+    Green: launchpad.BrightnessMedium,  // 0-3
+    Flash: false,
+}
+lp.SetLEDState(x, y, state)
+
+// Calculate raw velocity values
+velocity := launchpad.GetVelocityRGB(red, green, flash)
+```
+
+## Examples
+
+### Basic LED Control
+
+See [examples/basic/main.go](examples/basic/main.go):
+```bash
+cd examples/basic
+go run main.go
+```
+
+### Button Event Handling
+
+See [examples/buttons/main.go](examples/buttons/main.go):
+```bash
+cd examples/buttons
+go run main.go
+```
+
+### Rainbow Animation
+
+See [examples/rainbow/main.go](examples/rainbow/main.go):
+```bash
+cd examples/rainbow
+go run main.go
+```
+
+### Double-Buffered Animation
+
+See [examples/animation/main.go](examples/animation/main.go):
+```bash
+cd examples/animation
+go run main.go
+```
+
+### Conway's Game of Life
+
+See [examples/gameoflife/main.go](examples/gameoflife/main.go):
+```bash
+cd examples/gameoflife
+go run main.go
+```
+
+This example demonstrates:
+- Double-buffering for smooth cellular automaton animation
+- Toroidal grid topology (edges wrap around)
+- Auto-restart when the simulation dies or stagnates
+- Population visualization on top buttons
+- Generation counter on scene buttons (binary)
+
+## Button Coordinate System
+
+### Grid Buttons (8×8)
+```
+    0   1   2   3   4   5   6   7
+0  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ]
+1  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ]
+2  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ]
+3  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ]
+4  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ]
+5  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ]
+6  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ]
+7  [ ] [ ] [ ] [ ] [ ] [ ] [ ] [ ]
+```
+
+- Origin: Top-left (0, 0)
+- X-axis: Left to right (0-7)
+- Y-axis: Top to bottom (0-7)
+
+### Scene Buttons (Right Column)
+8 round buttons on the right side, indexed 0-7 from top to bottom.
+
+### Top Row Buttons (Automap/Live)
+8 round buttons on the top, indexed 0-7 from left to right.
+
+## Technical Details
+
+### MIDI Protocol
+- Communication: MIDI note-on, note-off, and controller change messages
+- Channel: MIDI channel 1 (channel 3 for rapid updates)
+- Message Rate: Maximum 400 messages per second (automatically enforced)
+- Message Length: Always 3 bytes
+
+### Performance
+- Full surface update time: ~200ms (80 LEDs)
+- Message queue with automatic rate limiting
+- Double-buffering for smooth animations
+- Non-blocking button event handling
+
+### Velocity Byte Encoding
+The library handles velocity byte calculation automatically, but for reference:
+
+```
+Velocity = (16 × green) + red + flags
+
+Where:
+- red: 0-3 (brightness level)
+- green: 0-3 (brightness level)
+- flags: 12 (normal), 8 (flash)
+```
+
+## Documentation
+
+- [Claude.md](Claude.md) - Detailed implementation plan and technical specifications
+- [Programmer's Reference](docs/launchpad-programmers-reference.md) - Official Launchpad MIDI protocol
+- [GoDoc](https://pkg.go.dev/github.com/inegm/golp/pkg/launchpad) - API documentation
+
+## Troubleshooting
+
+### "launchpad input port not found"
+- Ensure your Launchpad Mini is connected via USB
+- Check that no other application is using the Launchpad
+- On Linux, ensure you have ALSA development libraries installed
+
+### LEDs not updating
+- Check that `Open()` was called successfully
+- Ensure you're not exceeding the 400 msg/sec rate limit (library handles this automatically)
+- Verify the Launchpad is powered (USB connected)
+
+### Button events not received
+- Ensure you've registered a handler with `OnButton()` or are reading from `ButtonEvents()`
+- Check that your program is still running (use `select {}` to keep it alive)
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit issues or pull requests.
+
+## License
+
+This project is provided as-is for educational and development purposes.
+
+## References
+
+- [Novation Launchpad Mini](https://novationmusic.com/products/launchpad-mini)
+- [MIDI Specification](https://www.midi.org/specifications)
+- [gomidi/midi Library](https://gitlab.com/gomidi/midi)
+
+## Author
+
+Created for interfacing with the Novation Launchpad Mini MIDI controller.
